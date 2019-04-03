@@ -20,6 +20,7 @@ import (
 	"context"
 	"net"
 	nethttp "net/http"
+	_ "net/http/pprof"
 	"strings"
 	"time"
 
@@ -84,6 +85,11 @@ func standardHttp(continuousDiscovery bool) {
 		mux := nethttp.NewServeMux()
 		zpages.Handle(mux, "/debug")
 		log.Fatale(nethttp.ListenAndServe("127.0.0.1:8081", mux))
+	}()
+
+	// https://medium.com/observability/debugging-latency-in-go-1-11-9f97a7910d68
+	go func() {
+		log.Fatale(nethttp.ListenAndServe("127.0.0.1:8082", nil))
 	}()
 
 	// Register stats and trace exporters to export the collected data.
