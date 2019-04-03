@@ -17,6 +17,7 @@
 package app
 
 import (
+	"context"
 	"net"
 	nethttp "net/http"
 	"strings"
@@ -36,6 +37,11 @@ import (
 	"github.com/martini-contrib/gzip"
 	"github.com/martini-contrib/render"
 	"github.com/openark/golib/log"
+
+	"go.opencensus.io/zpages"
+	"go.opencensus.io/examples/exporter"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/trace"
 )
 
 const discoveryMetricsName = "DISCOVERY_METRICS"
@@ -73,6 +79,26 @@ func promptForSSLPasswords() {
 
 // standardHttp starts serving HTTP or HTTPS (api/web) requests, to be used by normal clients
 func standardHttp(continuousDiscovery bool) {
+	// https://opencensus.io/zpages/go/
+	go func() {
+		mux := nethttp.NewServeMux()
+		zpages.Handle(mux, "/debug")
+		log.Fatale(nethttp.ListenAndServe("127.0.0.1:8081", mux))
+	}()
+
+	// Register stats and trace exporters to export the collected data.
+	exporter := &exporter.PrintExporter{}
+	view.RegisterExporter(exporter)
+	trace.RegisterExporter(exporter)
+
+	// Always trace for this demo. In a production application, you should
+	// configure this to a trace.ProbabilitySampler set at the desired
+	// probability.
+	trace.ApplyConfig(trace.Config{DefaultSampler: trace.AlwaysSample()})
+
+	// Report stats at every second.
+	view.SetReportingPeriod(1 * time.Second)
+
 	m := martini.Classic()
 
 	switch strings.ToLower(config.Config.AuthenticationMethod) {
@@ -114,6 +140,13 @@ func standardHttp(continuousDiscovery bool) {
 		HTMLContentType: "text/html",
 	}))
 	m.Use(martini.Static("resources/public", martini.StaticOptions{Prefix: config.Config.URLPrefix}))
+	m.Use(func(c martini.Context) {
+		ctx, cancel := context.WithCancel(context.Background())
+		ctx, span := trace.StartSpan(ctx, "martini.request")
+		defer span.End()
+		defer cancel()
+		c.Next()
+	})
 	if config.Config.UseMutualTLS {
 		m.Use(ssl.VerifyOUs(config.Config.SSLValidOUs))
 	}
