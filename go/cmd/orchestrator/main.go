@@ -21,10 +21,15 @@ import (
 	"fmt"
 	"os"
 
+	"contrib.go.opencensus.io/exporter/jaeger"
+	"contrib.go.opencensus.io/exporter/zipkin"
 	"github.com/github/orchestrator/go/app"
 	"github.com/github/orchestrator/go/config"
 	"github.com/github/orchestrator/go/inst"
 	"github.com/openark/golib/log"
+	openzipkin "github.com/openzipkin/zipkin-go"
+	"github.com/openzipkin/zipkin-go/reporter/http"
+	"go.opencensus.io/trace"
 )
 
 var AppVersion, GitCommit string
@@ -48,6 +53,9 @@ func main() {
 	quiet := flag.Bool("quiet", false, "quiet")
 	verbose := flag.Bool("verbose", false, "verbose")
 	debug := flag.Bool("debug", false, "debug mode (very verbose)")
+	zipkinURL := flag.String("zipkin.url", "", "URL to send zipkin traces to, e.g. http://localhost:9411/api/v2/spans")
+	jaegerAgentURL := flag.String("jaeger.agent.url", "", "Agent URL to send jaeger traces to, e.g. localhost:6831")
+	jaegerCollectorURL := flag.String("jaeger.collector.url", "", "Collector URL to send jaeger traces to, e.g. http://localhost:14268")
 	stack := flag.Bool("stack", false, "add stack trace upon error")
 	config.RuntimeCLIFlags.SkipBinlogSearch = flag.Bool("skip-binlog-search", false, "when matching via Pseudo-GTID, only use relay logs. This can save the hassle of searching for a non-existend pseudo-GTID entry, for example in servers with replication filters.")
 	config.RuntimeCLIFlags.SkipUnresolve = flag.Bool("skip-unresolve", false, "Do not unresolve a host name")
@@ -95,6 +103,32 @@ func main() {
 		fmt.Println(AppVersion)
 		fmt.Println(GitCommit)
 		return
+	}
+
+	if *zipkinURL != "" {
+		localEndpoint, err := openzipkin.NewEndpoint("orchestrator", "192.168.1.5:5454")
+		if err != nil {
+			log.Errore(err)
+		}
+		reporter := http.NewReporter(*zipkinURL)
+		exporter := zipkin.NewExporter(reporter, localEndpoint)
+		trace.RegisterExporter(exporter)
+	} else if *jaegerAgentURL != "" || *jaegerCollectorURL != "" {
+		jaegerOptions := jaeger.Options{
+			Process: jaeger.Process{
+				ServiceName: "orchestrator",
+			},
+		}
+		if *jaegerAgentURL != "" {
+			jaegerOptions.AgentEndpoint = *jaegerAgentURL
+		} else {
+			jaegerOptions.Endpoint = *jaegerCollectorURL
+		}
+		exporter, err := jaeger.NewExporter(jaegerOptions)
+		if err != nil {
+			log.Errore(err)
+		}
+		trace.RegisterExporter(exporter)
 	}
 
 	startText := "starting orchestrator"
