@@ -29,6 +29,7 @@ import (
 	"github.com/martini-contrib/render"
 	"github.com/rcrowley/go-metrics"
 	"github.com/rcrowley/go-metrics/exp"
+	"go.opencensus.io/zpages"
 
 	"github.com/github/orchestrator/go/config"
 	"github.com/github/orchestrator/go/inst"
@@ -464,6 +465,8 @@ func (this *HttpWeb) RegisterDebug(m *martini.ClassicMartini) {
 	m.Get(this.URLPrefix+"/debug/pprof/profile", pprof.Profile)
 	m.Get(this.URLPrefix+"/debug/pprof/symbol", pprof.Symbol)
 	m.Post(this.URLPrefix+"/debug/pprof/symbol", pprof.Symbol)
+	m.Get(this.URLPrefix+"/debug/pprof/trace", pprof.Trace)
+	m.Get(this.URLPrefix+"/debug/zpages", zpages.Handle)
 	m.Get(this.URLPrefix+"/debug/pprof/block", pprof.Handler("block").ServeHTTP)
 	m.Get(this.URLPrefix+"/debug/pprof/heap", pprof.Handler("heap").ServeHTTP)
 	m.Get(this.URLPrefix+"/debug/pprof/goroutine", pprof.Handler("goroutine").ServeHTTP)

@@ -20,7 +20,6 @@ import (
 	"context"
 	"net"
 	nethttp "net/http"
-	_ "net/http/pprof"
 	"strings"
 	"time"
 
@@ -39,7 +38,6 @@ import (
 	"github.com/martini-contrib/render"
 	"github.com/openark/golib/log"
 
-	"go.opencensus.io/zpages"
 	"go.opencensus.io/examples/exporter"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
@@ -80,18 +78,6 @@ func promptForSSLPasswords() {
 
 // standardHttp starts serving HTTP or HTTPS (api/web) requests, to be used by normal clients
 func standardHttp(continuousDiscovery bool) {
-	// https://opencensus.io/zpages/go/
-	go func() {
-		mux := nethttp.NewServeMux()
-		zpages.Handle(mux, "/debug")
-		log.Fatale(nethttp.ListenAndServe("127.0.0.1:8081", mux))
-	}()
-
-	// https://medium.com/observability/debugging-latency-in-go-1-11-9f97a7910d68
-	go func() {
-		log.Fatale(nethttp.ListenAndServe("127.0.0.1:8082", nil))
-	}()
-
 	// Register stats and trace exporters to export the collected data.
 	exporter := &exporter.PrintExporter{}
 	view.RegisterExporter(exporter)
