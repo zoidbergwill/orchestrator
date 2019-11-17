@@ -17,14 +17,16 @@
 package metrics
 
 import (
-	"github.com/cyberdelia/go-metrics-graphite"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
+	"contrib.go.opencensus.io/exporter/graphite"
 	"github.com/github/orchestrator/go/config"
 	"github.com/github/orchestrator/go/process"
 	"github.com/openark/golib/log"
-	"github.com/rcrowley/go-metrics"
-	"net"
-	"strings"
-	"time"
+	"go.opencensus.io/stats/view"
 )
 
 // InitGraphiteMetrics is called once in the lifetime of the app, after config has been loaded
@@ -38,10 +40,7 @@ func InitGraphiteMetrics() error {
 	if config.Config.GraphitePath == "" {
 		return log.Errorf("No graphite path provided (see GraphitePath config variable). Will not log to graphite")
 	}
-	addr, err := net.ResolveTCPAddr("tcp", config.Config.GraphiteAddr)
-	if err != nil {
-		return log.Errore(err)
-	}
+
 	graphitePathHostname := process.ThisHostname
 	if config.Config.GraphiteConvertHostnameDotsToUnderscores {
 		graphitePathHostname = strings.Replace(graphitePathHostname, ".", "_", -1)
@@ -51,7 +50,28 @@ func InitGraphiteMetrics() error {
 
 	log.Debugf("Will log to graphite on %+v, %+v", config.Config.GraphiteAddr, graphitePath)
 
-	go graphite.Graphite(metrics.DefaultRegistry, 1*time.Minute, graphitePath, addr)
+	graphiteAddr, err := url.Parse(config.Config.GraphiteAddr)
+	if err != nil {
+		return log.Errore(err)
+	}
+
+	port, err := strconv.Atoi(graphiteAddr.Port())
+	if err != nil {
+		return log.Errore(err)
+	}
+
+	exporter, err := graphite.NewExporter(graphite.Options{
+		Namespace: graphitePath,
+		Host:      graphiteAddr.Hostname(),
+		Port:      port,
+	})
+	if err != nil {
+		return log.Errore(err)
+	}
+	view.RegisterExporter(exporter)
+	view.SetReportingPeriod(time.Duration(config.Config.GraphitePollSeconds) * time.Second)
+
+	// go graphite.Graphite(metrics.DefaultRegistry, 1*time.Minute, graphitePath, addr)
 
 	return nil
 }

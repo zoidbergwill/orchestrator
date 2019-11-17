@@ -7,6 +7,12 @@
 			"revision": ""
 		},
 		{
+			"checksumSHA1": "mwuXoLrF8sIvWryAv+O/CoNGYvE=",
+			"path": "contrib.go.opencensus.io/exporter/graphite",
+			"revision": "f4bcbbf058a5b9878aebe58cbbf663bc9753bcf1",
+			"revisionTime": "2019-03-25T16:11:42Z"
+		},
+		{
 			"checksumSHA1": "sAoxalzykX5Qo/G3h5zAGD1ZlXg=",
 			"path": "contrib.go.opencensus.io/exporter/jaeger",
 			"revision": "540daef1da72376e9b3e1d52e4f90403d72f5c00",
